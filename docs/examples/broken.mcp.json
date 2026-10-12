@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "missing-binary": {
+      "command": "definitely-not-installed-xyzzy",
+      "args": ["--verbose"]
+    },
+    "pasted-shell-line": {
+      "command": "npx -y @modelcontextprotocol/server-filesystem /tmp"
+    },
+    "no-transport": {
+      "env": { "SOMETHING": "value" }
+    },
+    "plain-http-remote": {
+      "type": "http",
+      "url": "http://api.example.com/mcp"
+    },
+    "credentials-in-url": {
+      "url": "https://admin:example-password@example.com/mcp"
+    },
+    "committed-credential": {
+      "command": "some-server",
+      "env": {
+        "MY_API_KEY": "sk-EXAMPLEEXAMPLEEXAMPLEEXAMPLE1234"
+      }
+    },
+    "invalid-env-name": {
+      "command": "some-server",
+      "env": { "INVALID-NAME": "value" }
+    }
+  }
+}

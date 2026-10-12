@@ -1,0 +1,26 @@
+# Build output
+/bin/
+/dist/
+mcpdoctor
+mcpdoctor_*
+
+# Coverage artifacts
+*.out
+coverage.txt
+
+# Fuzzing corpus entries produced locally. The corpus that CI runs is the seed set
+# committed under testdata; anything written here is a local experiment.
+# Uncomment only if you intend to review it before committing.
+# internal/config/testdata/fuzz/
+
+# Editor and OS noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Local environment. MCP Doctor itself reads the user's real MCP configuration, so
+# nothing that resembles one should ever be committed from a development machine.
+.env
+.env.*
+*.local.json

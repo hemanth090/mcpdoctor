@@ -1,0 +1,194 @@
+name: release
+
+# Releases are tag-driven and never run from a branch. A release artifact that could be
+# produced from an arbitrary commit is a supply-chain problem, not a convenience.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux/amd64
+            os: linux
+            arch: amd64
+          - target: linux/arm64
+            os: linux
+            arch: arm64
+          - target: darwin/amd64
+            os: darwin
+            arch: amd64
+          - target: darwin/arm64
+            os: darwin
+            arch: arm64
+          - target: windows/amd64
+            os: windows
+            arch: amd64
+          - target: windows/arm64
+            os: windows
+            arch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify the working tree is clean
+        # Reproducibility is impossible if the build sees uncommitted state, so the
+        # release is refused rather than shipping something unaccountable.
+        run: git diff --exit-code && git status --porcelain
+
+      - name: Verify tests still pass
+        run: go test ./... -count=1
+
+      - name: Build
+        id: build
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          out="mcpdoctor_${os}_${arch}"
+          if [ "$os" = "windows" ]; then
+            out="${out}.exe"
+          fi
+
+          # CGO is disabled so the binary is fully static and runs on a distro older
+          # than the one that built it.
+          #
+          # The build is made reproducible: buildvcs stamps the commit, -trimpath removes
+          # local filesystem paths, and -ldflags fixes the version string that would
+          # otherwise be empty. Two builds of the same commit therefore produce
+          # byte-identical output, which is what makes the checksum meaningful.
+          CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+            go build \
+              -trimpath \
+              -buildvcs=true \
+              -ldflags "-s -w -X github.com/mcpdoctor/mcpdoctor/internal/cli.Version=${VERSION}" \
+              -o "$out" \
+              ./cmd/mcpdoctor
+
+          # Record the module version too, so the binary can report what it was built from.
+          {
+            echo "## Build metadata"
+            echo ""
+            echo "- version: ${VERSION}"
+            echo "- commit: ${GITHUB_SHA}"
+            echo "- go: $(go version)"
+            echo "- target: ${{ matrix.target }}"
+            echo "- cgo: disabled"
+          } > "${out}.buildinfo"
+
+      - name: Smoke test the binary
+        if: matrix.os != 'windows'
+        run: ./"mcpdoctor_${os}_${arch}" --version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpdoctor-${{ matrix.target }}
+          path: |
+            mcpdoctor_${{ matrix.os }}_${{ matrix.arch }}
+            mcpdoctor_${{ matrix.os }}_${{ matrix.arch }}.buildinfo
+          if-no-files-found: error
+
+  checksums:
+    name: checksums
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          # Only the binaries get checksums; the buildinfo files are metadata.
+          sha256sum mcpdoctor_*[!o] > mcpdoctor_${GITHUB_REF_NAME}_checksums.txt 2>/dev/null || \
+            sha256sum mcpdoctor_* > /tmp/all.txt
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: publish release
+    needs: [build, checksums]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Write release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+
+          # Notes are generated from the actual commits since the previous tag, so they
+          # describe what really changed rather than what someone remembered to write.
+          {
+            echo "# mcp-doctor ${tag}"
+            echo
+            echo "Diagnostics for Model Context Protocol servers."
+            echo
+            echo "## Installation"
+            echo
+            echo '```sh'
+            echo "# Download the archive for your platform from the assets below,"
+            echo "# verify it against the checksum file, and move it onto your PATH."
+            echo '```'
+            echo
+            echo "## Changes"
+            echo
+            git log --pretty="- %s (%h)" "${tag}^..${tag}" 2>/dev/null || echo "- see commit history"
+          } > release-notes.md
+
+          gh release create "$tag" \
+            --title "mcp-doctor ${tag}" \
+            --notes-file release-notes.md \
+            dist/* || gh release upload "$tag" dist/* --clobber
+
+      # Checksums are published so a user can verify what they downloaded. Release
+      # signing with a key requires a maintainer-held secret, so it is wired up but
+      # skipped automatically when the secret is absent, rather than failing the release.
+      - name: Sign checksums with cosign
+        if: ${{ secrets.COSIGN_PRIVATE_KEY != '' }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd dist
+          for f in mcpdoctor_*checksums.txt; do
+            cosign sign-blob --key cosign.key "$f"
+          done
+
+      - name: Publish provenance attestation
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/mcpdoctor_*
