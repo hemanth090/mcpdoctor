@@ -73,13 +73,25 @@ func runCheck(ctx context.Context, opts Options) runResult {
 		}
 
 		if res.Err != nil {
-			// A missing configuration is the normal state of most machines, so it is
-			// informational. Failing a build because a user has no Gemini CLI config
-			// would make the tool useless.
-			severity := diagnose.SeverityWarning
-			if res.Err.Kind == config.FileErrNotFound {
+			// Severity is a judgement about how broken the situation is, not about how
+			// unusual it is. A configuration that cannot be parsed at all is broken: the
+			// client will fail to read it, so a CI gate must fail. Classifying it as a
+			// warning would let a corrupt config pass a pipeline, which is the one thing
+			// this tool exists to prevent.
+			severity := diagnose.SeverityError
+			switch res.Err.Kind {
+			case config.FileErrNotFound:
+				// A missing configuration is the normal state of most machines, so it is
+				// informational. Failing a build because a user has no Gemini CLI config
+				// would make the tool useless.
 				severity = diagnose.SeverityInfo
+			case config.FileErrUnsupportedFormat:
+				// A YAML or TOML client is detected but not parsed in this release. The
+				// user is told plainly; calling it an error would be misleading, because
+				// their configuration is fine and this tool simply does not read it yet.
+				severity = diagnose.SeverityWarning
 			}
+
 			rs.Error = r.Sanitize(res.Err.Error(), 400)
 			result.report.Add(diagnose.Finding{
 				Code:     res.Err.DiagnosticCode(),

@@ -572,7 +572,7 @@ func checkAbsoluteCommand(s Server, cmd string, findings *[]diagnose.Finding) {
 }
 
 // ruleArgs validates the args array.
-func ruleArgs(a Adapter, s Server, _ *redact.Redactor) []diagnose.Finding {
+func ruleArgs(a Adapter, s Server, r *redact.Redactor) []diagnose.Finding {
 	raw, present := rawField(s, "args")
 	if !present {
 		return nil
@@ -590,6 +590,20 @@ func ruleArgs(a Adapter, s Server, _ *redact.Redactor) []diagnose.Finding {
 
 	var findings []diagnose.Finding
 	for i, arg := range s.Args {
+		// Register credential arguments with the redactor. This is what stops
+		// `--token <key>` from being printed verbatim by the consent prompt, which is
+		// the one place the tool echoes a command back to the user.
+		//
+		// A secret passed as a flag is not credential-shaped on its own: the value that
+		// matters is the one following a flag whose name implies a secret, so the check
+		// looks at the pair rather than the value in isolation.
+		if redact.LooksSecret("", arg) {
+			r.Add(arg, true)
+		}
+		if i > 0 && flagImpliesSecret(s.Args[i-1]) {
+			r.Add(arg, true)
+		}
+
 		if arg == "" {
 			findings = append(findings, at(s, diagnose.Finding{
 				Code:     diagnose.CodeArgEmpty,
@@ -611,6 +625,29 @@ func ruleArgs(a Adapter, s Server, _ *redact.Redactor) []diagnose.Finding {
 		}
 	}
 	return findings
+}
+
+// flagImpliesSecret reports whether a command-line flag signals that its value is a
+// credential.
+//
+// The value passed to such a flag is frequently an ordinary-looking string, so shape
+// matching alone would miss it. This covers the common `--token value`, `--api-key=value`
+// and `Authorization: value` spellings that appear in MCP server arguments.
+func flagImpliesSecret(flag string) bool {
+	if !strings.HasPrefix(flag, "-") {
+		return false
+	}
+	lower := strings.ToLower(strings.TrimLeft(flag, "-"))
+	// Drop an inline "=value" so `--api-key=abc` is classified by its name.
+	if i := strings.IndexByte(lower, '='); i >= 0 {
+		lower = lower[:i]
+	}
+	for _, hint := range []string{"key", "secret", "token", "password", "passwd", "credential", "auth"} {
+		if strings.Contains(lower, hint) {
+			return true
+		}
+	}
+	return false
 }
 
 // ruleEnv validates the env object and registers its values with the redactor.

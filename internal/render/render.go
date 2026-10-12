@@ -355,6 +355,13 @@ func (f Finding) severity() diagnose.Severity {
 	return s
 }
 
+// typedFinding pairs a wire finding with its numeric severity so sorting does not have
+// to parse the severity name back out of its string form.
+type typedFinding struct {
+	severity diagnose.Severity
+	wire     Finding
+}
+
 // BuildReport assembles the wire report from renderer input.
 //
 // Findings are sorted here, once, so both renderers share the same ordering and a diff
@@ -367,9 +374,12 @@ func BuildReport(in Input) Report {
 
 	errs, warns, infos := in.Report.Counts()
 
-	findings := make([]Finding, 0, len(in.Report.Findings))
+	// Sort by numeric severity, not by the severity's string name. Alphabetical order
+	// would put "info" before "warning", burying warnings under the least important
+	// findings, which is the opposite of what a severity ordering is for.
+	typed := make([]typedFinding, 0, len(in.Report.Findings))
 	for _, f := range in.Report.Findings {
-		findings = append(findings, Finding{
+		typed = append(typed, typedFinding{severity: f.Severity, wire: Finding{
 			Code:     f.Code,
 			Severity: f.Severity.String(),
 			Target:   f.Target,
@@ -378,14 +388,19 @@ func BuildReport(in Input) Report {
 			Detail:   f.Detail,
 			Remedy:   f.Remedy,
 			Example:  f.Example,
-		})
+		}})
 	}
-	sort.SliceStable(findings, func(i, j int) bool {
-		if findings[i].Severity != findings[j].Severity {
-			return findings[i].Severity < findings[j].Severity
+	sort.SliceStable(typed, func(i, j int) bool {
+		if typed[i].severity != typed[j].severity {
+			return typed[i].severity < typed[j].severity
 		}
-		return findings[i].Code < findings[j].Code
+		return typed[i].wire.Code < typed[j].wire.Code
 	})
+
+	findings := make([]Finding, 0, len(typed))
+	for _, t := range typed {
+		findings = append(findings, t.wire)
+	}
 
 	return Report{
 		SchemaVersion: SchemaVersion,
