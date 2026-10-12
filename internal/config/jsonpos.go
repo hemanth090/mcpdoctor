@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -58,10 +59,13 @@ type Node struct {
 	// Root is the top-level value.
 	Root Located
 
-	// KeyPositions maps every object key in the document to the position where that key
-	// was written. It is used to report a duplicate key, which the value tree alone
-	// cannot represent: by the time encoding/json builds the map, the first occurrence
-	// is gone.
+	// KeyPositions maps a JSON pointer to every position at which that key was written.
+	//
+	// The pointer is the path from the document root, for example
+	// "/mcpServers/filesystem/command". Scoping by path is essential: a duplicate key
+	// only means anything when both occurrences are in the same object, and a flat map
+	// keyed by name alone would report every common field name in the document as a
+	// duplicate.
 	KeyPositions map[string][]Position
 }
 
@@ -149,6 +153,10 @@ type doc struct {
 	line, col int
 
 	keyPositions map[string][]Position
+
+	// path is the JSON pointer prefix for the value currently being scanned, for example
+	// "/mcpServers/filesystem". It is pushed on entry to an object and popped on exit.
+	path []string
 }
 
 // Parse decodes JSON into a [Node], preserving source positions.
@@ -330,14 +338,21 @@ func (d *doc) scanObject(objStart Position) error {
 		}
 
 		keyPos := Position{Line: d.line, Col: d.col}
+		key := ""
 		if d.src[d.pos] == '"' {
-			key, err := d.scanString()
+			decoded, err := d.scanString()
 			if err != nil {
 				return err
 			}
+			key = decoded
+			// A duplicate key matters only when both occurrences are in this object, so
+			// the record is scoped by the object's JSON pointer rather than by the bare
+			// key name. Without the path, every repeated field name anywhere in the
+			// document would be reported as a duplicate.
+			pointer := d.pointer(key)
 			// A duplicate key is almost always a bad merge. encoding/json keeps only the
 			// last, so this is the only place it can be observed.
-			d.keyPositions[key] = append(d.keyPositions[key], keyPos)
+			d.keyPositions[pointer] = append(d.keyPositions[pointer], keyPos)
 		} else {
 			if err := d.scanScalar(); err != nil {
 				return err
@@ -350,9 +365,15 @@ func (d *doc) scanObject(objStart Position) error {
 		}
 		d.advance() // consume ':'
 
+		// Descend into the key's value so nested objects record their own paths. The
+		// key is pushed before the value is scanned and popped afterwards, which is what
+		// scopes duplicate detection to a single object.
+		d.path = append(d.path, key)
 		if _, err := d.scanValue(); err != nil {
+			d.path = d.path[:len(d.path)-1]
 			return err
 		}
+		d.path = d.path[:len(d.path)-1]
 
 		d.skipSpace()
 		if d.pos >= len(d.src) {
@@ -371,8 +392,13 @@ func (d *doc) scanObject(objStart Position) error {
 }
 
 // scanArray walks elements until the matching close bracket.
+//
+// Array elements are indexed in the path so that two objects inside the same array are
+// distinguishable; without the index, every element would share a pointer and an object
+// appearing twice in a list would look like a duplicate key.
 func (d *doc) scanArray(arrStart Position) error {
 	d.advance() // consume '['
+	index := 0
 	for {
 		d.skipSpace()
 		if d.pos >= len(d.src) {
@@ -382,9 +408,15 @@ func (d *doc) scanArray(arrStart Position) error {
 			d.advance()
 			return nil
 		}
+
+		d.path = append(d.path, strconv.Itoa(index))
 		if _, err := d.scanValue(); err != nil {
+			d.path = d.path[:len(d.path)-1]
 			return err
 		}
+		d.path = d.path[:len(d.path)-1]
+		index++
+
 		d.skipSpace()
 		if d.pos >= len(d.src) {
 			return &SyntaxError{Pos: arrStart, Msg: "unterminated array"}
@@ -487,6 +519,27 @@ func (d *doc) skipSpace() {
 			return
 		}
 	}
+}
+
+// pointer renders the current path plus key as a JSON pointer.
+//
+// Escaping follows RFC 6901, so a key containing a slash cannot collide with a path
+// separator and produce a false duplicate.
+func (d *doc) pointer(key string) string {
+	var b strings.Builder
+	for _, segment := range d.path {
+		b.WriteByte('/')
+		b.WriteString(escapePointerSegment(segment))
+	}
+	b.WriteByte('/')
+	b.WriteString(escapePointerSegment(key))
+	return b.String()
+}
+
+// escapePointerSegment escapes a JSON pointer segment per RFC 6901.
+func escapePointerSegment(s string) string {
+	s = strings.ReplaceAll(s, "~", "~0")
+	return strings.ReplaceAll(s, "/", "~1")
 }
 
 // here returns the current cursor position.

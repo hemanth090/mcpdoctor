@@ -231,6 +231,21 @@ func resolveTransport(a Adapter, entry map[string]any, s *Server) (TransportKind
 			s.TypeRecognized = true
 			return kind, "type: " + s.RawType
 		}
+
+		// An adapter with no declared type values at all is the generic fallback used
+		// for a file that could not be attributed to a known client. It has no opinion
+		// about spellings, so an unrecognised value is not a finding for it: reporting
+		// "stdio is not recognised" from an adapter that never said it recognised any
+		// value would be the tool arguing with itself.
+		if len(a.SupportedTypeValues) == 0 {
+			if kind, res := inferTransport(a, entry, *s); kind != "" {
+				s.TypeRecognized = true
+				return kind, res
+			}
+			s.TypeRecognized = true
+			return "", ""
+		}
+
 		// Unrecognised type: fall through to inference so the rest of the diagnosis is
 		// still useful, but remember that the type field itself was wrong. Without this
 		// flag a typo in `type` would be silently masked by a successful inference, which
@@ -623,11 +638,19 @@ func ruleEnv(a Adapter, s Server, r *redact.Redactor) []diagnose.Finding {
 	sort.Strings(names)
 
 	for _, name := range names {
-		value, _ := s.Env[name]
+		value := s.Env[name]
 
 		// Register the value before anything can be printed. This is the single point
 		// where config secrets enter the redaction system.
-		r.AddEnv(name, value)
+		//
+		// Registration is deliberately selective: a value is registered when the name
+		// suggests a credential or the value itself matches a known credential shape.
+		// Registering every value would redact ordinary strings like "debug" or
+		// "production" wherever they appear in prose, which trains users to ignore
+		// redaction entirely.
+		if redact.LooksSecret(name, value) {
+			r.AddEnv(name, value)
+		}
 
 		if !validEnvName(name) {
 			findings = append(findings, at(s, diagnose.Finding{
@@ -795,8 +818,11 @@ func ruleHeaders(a Adapter, s Server, r *redact.Redactor) []diagnose.Finding {
 	for _, name := range names {
 		value := s.Headers[name]
 		// Header values carry the same credentials as env values and are registered
-		// with the redactor for the same reason.
-		r.AddEnv("HEADER_"+strings.ToUpper(name), value)
+		// for the same reason, under the same selectivity rule. Authorization is always
+		// registered because it is a credential by definition, whatever it contains.
+		if strings.EqualFold(name, "authorization") || redact.LooksSecret(name, value) {
+			r.Add(value, true)
+		}
 
 		if strings.TrimSpace(value) == "" {
 			findings = append(findings, at(s, diagnose.Finding{

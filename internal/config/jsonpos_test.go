@@ -26,9 +26,10 @@ func TestParseDecodesObjectsAndRecordsKeyPositions(t *testing.T) {
 	}
 
 	// The whole point of this package: we must be able to say where a key was written.
-	pos, ok := node.KeyPositions["mcpServers"]
+	// Keys are recorded by JSON pointer, so that a duplicate is scoped to one object.
+	pos, ok := node.KeyPositions["/mcpServers"]
 	if !ok || len(pos) != 1 {
-		t.Fatalf("KeyPositions[mcpServers] = %v, want one entry", pos)
+		t.Fatalf("KeyPositions[\"/mcpServers\"] = %v, want one entry", pos)
 	}
 	if pos[0].Line != 2 {
 		t.Errorf("mcpServers recorded at line %d, want 2", pos[0].Line)
@@ -47,13 +48,65 @@ func TestParseRecordsDuplicateKeysThatStandardParsersDrop(t *testing.T) {
 		t.Fatalf("Parse error: %v", err)
 	}
 
-	pos := node.KeyPositions["command"]
+	pos := node.KeyPositions["/command"]
 	if len(pos) != 2 {
-		t.Fatalf("KeyPositions[command] has %d entries, want 2 (a duplicate)", len(pos))
+		t.Fatalf("KeyPositions[\"/command\"] has %d entries, want 2 (a duplicate)", len(pos))
 	}
-	if pos[0].Col != 2 || pos[1].Col == pos[0].Col {
+	if pos[0].Col == pos[1].Col {
 		t.Errorf("duplicate positions not distinct: %v", pos)
 	}
+}
+
+func TestParseDoesNotReportSameKeyNameInDifferentObjectsAsDuplicate(t *testing.T) {
+	// Every MCP config has "command" in several servers. Those are not duplicates, and
+	// a flat key-to-positions map would report every one of them, which is the bug this
+	// test guards against.
+	src := `{"mcpServers":{
+		"a": {"command": "npx"},
+		"b": {"command": "uvx"},
+		"c": {"command": "node"}
+	}}`
+	node, err := Parse([]byte(src))
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+
+	for pointer, positions := range node.KeyPositions {
+		if len(positions) > 1 {
+			t.Errorf("pointer %q recorded %d positions, want 1 (same key name in different objects is not a duplicate)", pointer, len(positions))
+		}
+	}
+
+	for _, want := range []string{"/mcpServers/a/command", "/mcpServers/b/command", "/mcpServers/c/command"} {
+		if _, ok := node.KeyPositions[want]; !ok {
+			t.Errorf("expected pointer %q to be recorded; got keys %v", want, keysOf(node))
+		}
+	}
+}
+
+func TestParseEscapesPointerSegmentsContainingSlashes(t *testing.T) {
+	// A server named "a/b" must not produce the same pointer as a nested "a" -> "b".
+	src := `{"mcpServers":{"a/b":{"command":"x"},"a":{"b":{"command":"y"}}}}`
+	node, err := Parse([]byte(src))
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+
+	if _, ok := node.KeyPositions["/mcpServers/a~1b/command"]; !ok {
+		t.Errorf("slash in key not escaped per RFC 6901; keys: %v", keysOf(node))
+	}
+	if _, ok := node.KeyPositions["/mcpServers/a/b/command"]; !ok {
+		t.Errorf("nested pointer missing; keys: %v", keysOf(node))
+	}
+}
+
+// keysOf returns a node's recorded pointers, for failure messages.
+func keysOf(n *Node) []string {
+	out := make([]string, 0, len(n.KeyPositions))
+	for k := range n.KeyPositions {
+		out = append(out, k)
+	}
+	return out
 }
 
 func TestParseReportsLineAndColumnForMalformedJSON(t *testing.T) {
@@ -232,7 +285,7 @@ func TestParseHandlesUnicodeContent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse error on unicode: %v", err)
 	}
-	pos := node.KeyPositions["name"]
+	pos := node.KeyPositions["/name"]
 	if len(pos) != 1 || pos[0].Line != 2 {
 		t.Errorf("unicode key position = %v, want line 2", pos)
 	}
