@@ -87,8 +87,9 @@ func runCheck(ctx context.Context, opts Options) runResult {
 				severity = diagnose.SeverityInfo
 			case config.FileErrUnsupportedFormat:
 				// A YAML or TOML client is detected but not parsed in this release. The
-				// user is told plainly; calling it an error would be misleading, because
-				// their configuration is fine and this tool simply does not read it yet.
+				// user's configuration is fine; this tool simply does not read it yet.
+				// Calling that an error would fail a CI job over a tool limitation rather
+				// than a configuration problem, which is the wrong reason to fail.
 				severity = diagnose.SeverityWarning
 			}
 
@@ -201,12 +202,29 @@ func resolveSources(opts Options) []config.Source {
 				DisplayName: string(client),
 				Path:        abs,
 				Scope:       scopeFor(abs),
-				Format:      config.FormatJSON,
+				Format:      detectFormat(abs),
 			})
 		}
 		return out
 	}
 	return config.DescribePaths(opts.ProjectRoot)
+}
+
+// detectFormat infers a configuration file's syntax from its extension.
+//
+// Without this, pointing --config at a Continue YAML file would report "not valid
+// JSON", which is true but useless: the real answer is that MCP Doctor recognises the
+// file and does not parse YAML yet. Saying the precise thing is the difference between
+// a diagnostic the user can act on and one that sends them to the wrong document.
+func detectFormat(path string) config.Format {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".yaml", ".yml":
+		return config.FormatYAML
+	case ".toml":
+		return config.FormatTOML
+	default:
+		return config.FormatJSON
+	}
 }
 
 // scopeFor classifies an explicit path as user or project configuration.

@@ -345,6 +345,56 @@ func TestAdapterForFallsBackToAPermissiveAdapter(t *testing.T) {
 	}
 }
 
+func TestDetectFormatFromExtension(t *testing.T) {
+	// Without this, pointing --config at a Continue YAML file reports "not valid JSON",
+	// which is true but sends the user to the wrong document.
+	tests := map[string]config.Format{
+		"/x/config.json":  config.FormatJSON,
+		"/x/config":       config.FormatJSON,
+		"/x/config.yaml":  config.FormatYAML,
+		"/x/config.YML":   config.FormatYAML,
+		"/x/config.toml":  config.FormatTOML,
+		"/x/.mcp.json":    config.FormatJSON,
+		"/x/no-extension": config.FormatJSON,
+	}
+	for path, want := range tests {
+		if got := detectFormat(path); got != want {
+			t.Errorf("detectFormat(%q) = %q, want %q", path, got, want)
+		}
+	}
+}
+
+func TestUnsupportedFormatIsAWarningNotAnError(t *testing.T) {
+	// A Continue or Codex user has a perfectly valid configuration. Failing their CI job
+	// over a limitation of this tool would be the wrong reason to fail.
+	yaml := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(yaml, []byte("mcpServers:\n  a:\n    command: npx\n"), 0o644); err != nil {
+		t.Fatalf("write yaml: %v", err)
+	}
+
+	h := runCLI(t, testEnv(), "check", "--config", yaml)
+	if !strings.Contains(h.stdout.String(), "MDC0011") {
+		t.Errorf("expected an unsupported-format finding:\n%s", h.stdout)
+	}
+	if h.code != diagnose.ExitOK {
+		t.Errorf("unsupported format exited %d, want %d (it is a tool limitation, not a config problem)\n%s",
+			h.code, diagnose.ExitOK, h.stdout)
+	}
+	if !strings.Contains(h.stdout.String(), "WARNING") {
+		t.Errorf("unsupported format should be reported as a warning:\n%s", h.stdout)
+	}
+}
+
+func TestUnparseableJSONIsAnError(t *testing.T) {
+	// The opposite of the case above: a JSON file that cannot be parsed is genuinely
+	// broken, and a CI gate must fail on it.
+	p := writeConfig(t, `{"mcpServers": {broken}}`)
+	h := runCLI(t, testEnv(), "check", "--config", p)
+	if h.code != diagnose.ExitFindings {
+		t.Errorf("unparseable JSON exited %d, want %d\n%s", h.code, diagnose.ExitFindings, h.stdout)
+	}
+}
+
 func TestUnknownCommandIsAUsageFailure(t *testing.T) {
 	h := runCLI(t, testEnv(), "definitely-not-a-command")
 	if h.code != diagnose.ExitUsage {
