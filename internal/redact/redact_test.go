@@ -110,10 +110,14 @@ func TestRedactMatchesCredentialPatternsItNeverSaw(t *testing.T) {
 	// A server can echo a credential it fetched itself. We never registered that value,
 	// so only the pattern layer can catch it.
 	r := New()
-	in := "server said: token REDACTED_SAMPLE_TOKEN done"
+	// A JWT-shaped token built from fake parts. Assembling it here keeps a decodable,
+	// high-entropy JWT out of the source so secrets scanners watching public mirrors do
+	// not flag this fixture, while still matching the redactor's JWT pattern below.
+	jwt := "eyJ" + strings.Repeat("fake", 4) + "." + strings.Repeat("data", 4) + "." + strings.Repeat("sig", 6)
+	in := "server said: token " + jwt + " done"
 
 	got := r.Redact(in)
-	if strings.Contains(got, "eyJ_REDACTED_SAMPLE_HEADER") {
+	if strings.Contains(got, jwt) {
 		t.Errorf("JWT survived redaction: %q", got)
 	}
 	if !strings.Contains(got, "server said: token") {
@@ -122,11 +126,14 @@ func TestRedactMatchesCredentialPatternsItNeverSaw(t *testing.T) {
 }
 
 func TestRedactCatchesProviderKeyPrefixes(t *testing.T) {
+	// Low-entropy synthetic values (repeated chars). They still match each provider's
+	// prefix regex, but do not look like real keys, so secrets scanners watching public
+	// mirrors do not flag this file as containing live credentials.
 	cases := map[string]string{
-		"openai-style": "sk_REDACTED_SAMPLE",
-		"github":       "ghp_REDACTED_SAMPLE",
-		"aws":          "AKIA_REDACTED_SAMPLE",
-		"slack":        "xoxb_REDACTED_SAMPLE",
+		"openai-style": "sk-" + strings.Repeat("f", 32),
+		"github":       "ghp_" + strings.Repeat("A", 20),
+		"aws":          "AKIA" + strings.Repeat("X", 16),
+		"slack":        "xoxb-" + strings.Repeat("0", 12),
 	}
 	for name, key := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -168,7 +175,7 @@ func TestRedactPreservesKeyNameForKeyValuePairs(t *testing.T) {
 
 func TestRedactRemovesPrivateKeyBlocks(t *testing.T) {
 	r := New()
-	pem := "-----BEGIN RSA PRIVATE KEY-----\nMIIE_REDACTED_SAMPLE\nsecretline\n-----END RSA PRIVATE KEY-----"
+	pem := "-----BEGIN RSA PRIVATE KEY-----\nAAAAFAKEKEYLINEFAKELINE\nsecretline\n-----END RSA PRIVATE KEY-----"
 	got := r.Redact("config contained " + pem)
 	if strings.Contains(got, "secretline") {
 		t.Errorf("private key body survived: %q", got)
@@ -295,7 +302,8 @@ func TestLooksSecretDetectsByName(t *testing.T) {
 }
 
 func TestLooksSecretDetectsByShape(t *testing.T) {
-	if !LooksSecret("SOME_VAR", "sk_REDACTED_SAMPLE") {
+	// Low-entropy synthetic key (repeated chars) that still matches the OpenAI-style shape.
+	if !LooksSecret("SOME_VAR", "sk-"+strings.Repeat("f", 32)) {
 		t.Error("LooksSecret did not detect a key by shape")
 	}
 }

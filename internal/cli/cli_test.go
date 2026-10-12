@@ -412,7 +412,9 @@ func TestAdapterForReturnsTheRealAdapterForAKnownClient(t *testing.T) {
 func TestSecretsNeverAppearInAnyOutputPath(t *testing.T) {
 	// One config exercising both env and header credentials, checked across the human
 	// renderer, the JSON renderer, and stderr. Any leak here is a real incident.
-	const envSecret = "sk_REDACTED_SAMPLE"
+	// Low-entropy synthetic key (repeated chars) so it matches the OpenAI-style shape
+	// without resembling a real credential to secrets scanners on public mirrors.
+	const envSecret = "sk-ffffffffffffffffffffffffffffffff"
 	const headerSecret = "Bearer test-SECRET-abc123xyz789"
 
 	cfg := `{"mcpServers":{
