@@ -550,14 +550,25 @@ func sortSources(s []Source) {
 
 // IsProjectPath reports whether a path looks like a project-scoped config.
 //
-// The check is on the directory layout rather than the registry because a user can pass
-// --config with any path, and the distinction between "this file came from a repository
-// someone else wrote" and "this is my own machine config" changes how much caution the
-// output deserves.
+// The check matches only the unambiguous markers: a dotfile sitting at what is almost
+// always the repository root, or a dot-directory that virtually no client defines
+// outside a project. Directory-only markers such as ".cursor" are deliberately excluded
+// because the global Cursor config lives at ~/.cursor/mcp.json and shares the name with
+// the project one, so a substring test cannot tell them apart without being handed the
+// project root.
 func IsProjectPath(path string) bool {
 	clean := filepath.ToSlash(filepath.Clean(path))
-	for _, marker := range []string{"/.mcp.json", "/.vscode/", "/.cursor/", "/.zed/", "/.roo/", "/.amazonq/", "/.gemini/", "/.continue/"} {
-		if strings.HasSuffix(clean, marker) || strings.Contains(clean, marker) {
+
+	// A dotfile at the repository root.
+	for _, marker := range []string{"/.mcp.json", "/.roo/mcp.json", "/.amazonq/mcp.json"} {
+		if strings.HasSuffix(clean, marker) {
+			return true
+		}
+	}
+
+	// Directory-scoped markers that are distinctive to project configuration.
+	for _, marker := range []string{"/.vscode/mcp.json", "/.zed/settings.json", "/.gemini/settings.json"} {
+		if strings.HasSuffix(clean, marker) {
 			return true
 		}
 	}
