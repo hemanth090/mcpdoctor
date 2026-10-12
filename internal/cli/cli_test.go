@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mcpdoctor/mcpdoctor/internal/config"
 	"github.com/mcpdoctor/mcpdoctor/internal/diagnose"
 )
 
@@ -283,10 +284,78 @@ func TestVersionFlagPrintsAVersion(t *testing.T) {
 	}
 }
 
+func TestIsRemoteDistinguishesLoopbackFromPublicHosts(t *testing.T) {
+	// This classification decides whether a probe requires --allow-remote, so being
+	// wrong in either direction matters: too strict blocks legitimate work, too lax
+	// sends requests to the internet the operator did not intend.
+	remote := []string{
+		"http://example.com/mcp",
+		"https://api.example.com/mcp",
+		"http://192.168.1.10:8080/mcp",
+		"https://10.0.0.5/mcp",
+	}
+	for _, u := range remote {
+		if !isRemote(u) {
+			t.Errorf("isRemote(%q) = false, want true", u)
+		}
+	}
+
+	local := []string{
+		"http://localhost:3000/mcp",
+		"http://127.0.0.1:8080/mcp",
+		"https://127.0.0.1/mcp",
+		"HTTP://LOCALHOST:9000/mcp",
+		"http://[::1]:9000/mcp",
+	}
+	for _, u := range local {
+		if isRemote(u) {
+			t.Errorf("isRemote(%q) = true, want false", u)
+		}
+	}
+}
+
+func TestRedactURLRemovesEmbeddedCredentials(t *testing.T) {
+	// The consent prompt prints a URL; a password in it must not reach the screen.
+	got := redactURL("https://admin:hunter2secret@example.com/mcp")
+	if strings.Contains(got, "hunter2secret") {
+		t.Errorf("redactURL left the password in place: %q", got)
+	}
+	if !strings.Contains(got, "example.com/mcp") {
+		t.Errorf("redactURL destroyed the host and path: %q", got)
+	}
+
+	// A URL with no credentials is returned unchanged.
+	clean := "https://example.com/mcp"
+	if got := redactURL(clean); got != clean {
+		t.Errorf("redactURL modified a clean URL: %q", got)
+	}
+}
+
+func TestAdapterForFallsBackToAPermissiveAdapter(t *testing.T) {
+	// An unattributable file must still be validated, and correct values must not be
+	// reported as invalid just because the tool does not know which client wrote it.
+	a := adapterFor(config.Client("some-unknown-client"))
+	if a.ServersKey != "mcpServers" {
+		t.Errorf("fallback adapter ServersKey = %q", a.ServersKey)
+	}
+	for _, spelling := range []string{"stdio", "http", "streamable-http", "streamableHttp", "sse"} {
+		if _, ok := a.SupportedTypeValues[spelling]; !ok {
+			t.Errorf("fallback adapter does not accept documented type %q", spelling)
+		}
+	}
+}
+
 func TestUnknownCommandIsAUsageFailure(t *testing.T) {
 	h := runCLI(t, testEnv(), "definitely-not-a-command")
 	if h.code != diagnose.ExitUsage {
 		t.Errorf("exit code = %d, want %d", h.code, diagnose.ExitUsage)
+	}
+}
+
+func TestAdapterForReturnsTheRealAdapterForAKnownClient(t *testing.T) {
+	a := adapterFor(config.ClientZed)
+	if a.ServersKey != "context_servers" {
+		t.Errorf("Zed adapter ServersKey = %q, want context_servers", a.ServersKey)
 	}
 }
 
