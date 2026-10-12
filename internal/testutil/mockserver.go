@@ -21,7 +21,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -234,12 +233,3 @@ func addTool(server *mcp.Server, spec Tool) {
 		}, nil
 	})
 }
-
-// unusedGuard keeps imports honest if the helpers above are trimmed during refactoring.
-var (
-	_ = sync.Mutex{}
-	_ = Behavior{}
-)
-
-// Behavior is an alias kept for readability in test call sites.
-type Behavior = Behaviour
