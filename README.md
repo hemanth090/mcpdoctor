@@ -1,7 +1,7 @@
 # MCP Doctor
 
-Diagnose Model Context Protocol (MCP) server configurations, and — with your explicit
-permission — actually start the servers and check that they speak MCP.
+Diagnose Model Context Protocol (MCP) server configurations, and - with your explicit
+permission - actually start the servers and check that they speak MCP.
 
 MCP servers fail in boring, specific ways. The binary isn't installed. The config key is
 `cmd` instead of `command`. The server prints a banner to stdout and corrupts its own
@@ -87,7 +87,7 @@ mcpdoctor check --json | jq '.findings[] | select(.severity == "error")'
 ### Configuration (no execution)
 
 - Malformed JSON, reported with an exact `file:line:column`
-- Duplicate keys in one object — a standard parser silently keeps the last one
+- Duplicate keys in one object - a standard parser silently keeps the last one
 - Missing or contradictory transports (`command` and `url` both present, or neither)
 - Commands that will not resolve on `PATH`, or that are not executable
 - Arguments pasted as a shell line instead of an argv array
@@ -141,7 +141,7 @@ than this build understands is reported as informational, not as an error.
 | Code | Meaning |
 |---|---|
 | `0` | Completed, nothing reached the `--fail-on` threshold |
-| `1` | Completed, and something did — your configuration has problems |
+| `1` | Completed, and something did - your configuration has problems |
 | `2` | MCP Doctor could not run: bad flag, unreadable input, internal error |
 | `130` | Cancelled with Ctrl-C |
 
@@ -162,7 +162,7 @@ The full model is in [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md). The short ver
 
 **What MCP Doctor does provide**
 
-- Consent before execution, every time — `--execute` plus an interactive prompt
+- Consent before execution, every time - `--execute` plus an interactive prompt
 - No shell, ever: arguments are passed as an argv array, so `;` and `|` are literal
 - Credential isolation: the child process gets an allowlisted environment, not your
   whole shell

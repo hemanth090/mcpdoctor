@@ -6,8 +6,8 @@ MCP Doctor is a single-binary Go CLI that diagnoses Model Context Protocol (MCP)
 configurations and running servers. It answers two questions that developers currently
 answer by guesswork:
 
-1. **Is my configuration correct?** — static validation of client config files.
-2. **Will this server actually start and speak MCP?** — live protocol probe.
+1. **Is my configuration correct?** - static validation of client config files.
+2. **Will this server actually start and speak MCP?** - live protocol probe.
 
 Success looks like: a developer hits `mcp-doctor check`, gets a specific finding with a
 stable code and a copyable fix, and CI can gate on the exit code.
@@ -25,7 +25,7 @@ disagrees with any of these should say so before the release ships.
 
 | # | Assumption | Basis |
 |---|---|---|
-| 1 | Module path is `github.com/mcpdoctor/mcpdoctor`; the project is not yet published, so this is a placeholder to rename at publish time. | — |
+| 1 | Module path is `github.com/mcpdoctor/mcpdoctor`; the project is not yet published, so this is a placeholder to rename at publish time. | - |
 | 2 | Target MCP protocol revision is **2026-07-28**, with graceful negotiation back to 2024-11-05. | Official Go SDK `v1.8.0` `mcp.SupportedProtocolVersions()` |
 | 3 | We depend on the **official Go SDK** (`github.com/modelcontextprotocol/go-sdk`) rather than hand-rolling JSON-RPC. It is v1.x (GA). | `proxy.golang.org` module tags |
 | 4 | Supported transports for live probing: **stdio** and **Streamable HTTP**. Legacy HTTP+SSE is out of scope for v1 but detected statically. | MCP transports spec |
@@ -43,10 +43,10 @@ disagrees with any of these should say so before the release ships.
 | Language | Go | 1.27.1 (module targets `go 1.24`) |
 | MCP protocol | `github.com/modelcontextprotocol/go-sdk` | `v1.8.0` |
 | CLI framework | `github.com/spf13/cobra` | latest stable |
-| Module resolution | `github.com/google/jsonschema-go` (indirect, via SDK) | — |
-| Tests | stdlib `testing`, `net/http/httptest` | — |
-| Lint | `go vet`, `staticcheck`, `golangci-lint` in CI | — |
-| Module path | `github.com/mcpdoctor/mcpdoctor` | — |
+| Module resolution | `github.com/google/jsonschema-go` (indirect, via SDK) | - |
+| Tests | stdlib `testing`, `net/http/httptest` | - |
+| Lint | `go vet`, `staticcheck`, `golangci-lint` in CI | - |
+| Module path | `github.com/mcpdoctor/mcpdoctor` | - |
 
 No database, no service, no container, no cloud dependency.
 
@@ -141,7 +141,7 @@ Conventions:
 **Coverage target:** ≥ 80% statement coverage on `internal/config`, `internal/diagnose`,
 `internal/redact`, and `internal/render`. `internal/protocol` is process-heavy, so the
 target there is behavioural (every failure path exercised) rather than a percentage.
-Coverage is a floor, not a goal — a test that asserts nothing is worse than no test.
+Coverage is a floor, not a goal - a test that asserts nothing is worse than no test.
 
 ## Boundaries
 

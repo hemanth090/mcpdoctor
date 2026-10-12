@@ -1,4 +1,4 @@
-# MCP Doctor — developer task runner.
+# MCP Doctor - developer task runner.
 #
 # Every target here is a gate that CI also runs. A command that only exists in CI is a
 # command nobody runs locally before pushing, which is how red builds happen.

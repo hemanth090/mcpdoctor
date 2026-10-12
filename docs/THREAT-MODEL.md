@@ -28,7 +28,7 @@ them), the security of the MCP protocol itself, and the user's own environment.
         │  B1: read untrusted file
         ▼
   ┌─────────────────────────────────────────────────────────────┐
-  │ UNTRUSTED: config file bytes — arbitrary JSON from any of  │
+  │ UNTRUSTED: config file bytes - arbitrary JSON from any of  │
   │ several third-party clients, possibly edited by a repo      │
   └─────────────────────────────────────────────────────────────┘
         │  B2: explicit --execute + consent (the critical gate)
@@ -45,12 +45,12 @@ them), the security of the MCP protocol itself, and the user's own environment.
   └─────────────────────────────────────────────────────────────┘
 ```
 
-Three boundaries, each with controls below. **B2 is the one that matters most** — it is
+Three boundaries, each with controls below. **B2 is the one that matters most** - it is
 the only path to arbitrary code execution.
 
 ## 4. Threats and Controls
 
-### T1 — Config file directs execution of an attacker-chosen command
+### T1 - Config file directs execution of an attacker-chosen command
 
 A malicious or careless repo ships `.mcp.json` naming `curl … | sh`. Claude Desktop and
 other clients load project configs automatically.
@@ -65,7 +65,7 @@ other clients load project configs automatically.
 - **Residual risk:** an operator who passes `--execute --yes` in CI authorises whatever
   the config says. This is documented, not mitigated.
 
-### T2 — Command/argument injection
+### T2 - Command/argument injection
 
 Building a shell string from config would let `args: ["foo; rm -rf /"]` become code.
 
@@ -74,7 +74,7 @@ Building a shell string from config would let `args: ["foo; rm -rf /"]` become c
 - **Control:** validate that `command` is a bare executable name or an absolute path, and
   reject paths containing NUL or other control characters.
 
-### T3 — Secret disclosure
+### T3 - Secret disclosure
 
 Config `env` and `headers` routinely contain API keys. They can leak into terminal
 scrollback, CI logs, JSON reports, or a pasted GitHub issue.
@@ -92,7 +92,7 @@ scrollback, CI logs, JSON reports, or a pasted GitHub issue.
 - **Residual risk:** we cannot detect a secret that is, for example, a password the user
   typed into a tool argument. We redact what we know about.
 
-### T4 — Malicious or malformed server output
+### T4 - Malicious or malformed server output
 
 The server is arbitrary code. It controls its stdout and stderr completely.
 
@@ -100,24 +100,24 @@ The server is arbitrary code. It controls its stdout and stderr completely.
   (4 MiB default); HTTP bodies capped via `io.LimitReader`; config files capped by size
   before parsing.
 - **Control:** output that is not a valid JSON-RPC message produces a finding with a
-  redacted, length-capped excerpt — never a raw dump.
+  redacted, length-capped excerpt - never a raw dump.
 - **Control:** control characters (including ANSI escapes) are stripped from anything we
   echo, so a hostile server cannot repaint the terminal or forge a diagnostic line.
 - **Control:** server stderr is captured into a **bounded ring buffer**, so a server that
   logs without limit cannot exhaust memory.
 
-### T5 — Filesystem path abuse
+### T5 - Filesystem path abuse
 
 `cwd`, `command`, and config paths are attacker-influenced strings.
 
 - **Control:** all filesystem access goes through a validating accessor that rejects NUL
   bytes, resolves symlinks, and compares the result against the intended root.
-- **Control:** symlinked config files are resolved and reported — we tell the user which
+- **Control:** symlinked config files are resolved and reported - we tell the user which
   real file was read, because a symlink in a shared directory is itself a finding.
 - **Control:** we open config files read-only and never open them for writing, because we
   never write.
 
-### T6 — Network abuse via Streamable HTTP
+### T6 - Network abuse via Streamable HTTP
 
 A hostile `url` could target an internal metadata endpoint or a loopback admin port.
 
@@ -133,19 +133,19 @@ A hostile `url` could target an internal metadata endpoint or a loopback admin p
   because "my config points at a public URL" is usually a mistake worth confirming.
 - **Residual risk:** with operator consent we will connect to whatever URL they named.
 
-### T7 — Denial of service / resource exhaustion
+### T7 - Denial of service / resource exhaustion
 
 - **Control:** every blocking operation takes a `context.Context` with a deadline.
   Ctrl-C cancels promptly; nothing hangs forever.
 - **Control:** the number of servers probed per run is capped, and probing is sequential
-  — never a fan-out of unbounded subprocesses.
+  - never a fan-out of unbounded subprocesses.
 - **Control:** shutdown follows the spec's ladder: close stdin → wait → `SIGTERM` →
   wait → `SIGKILL`. A server that ignores `SIGTERM` is still reaped.
 - **Control:** the subprocess is started in its own process group (`Setpgid` /
   `CREATE_NEW_PROCESS_GROUP`) so we can signal the whole tree, and so a server that
   daemonises does not outlive us unnoticed.
 
-### T8 — CI trust erosion
+### T8 - CI trust erosion
 
 - **Control:** exit codes are a documented, tested contract. `1` means findings at or
   above the threshold, and never means "crashed".
@@ -156,18 +156,18 @@ A hostile `url` could target an internal metadata endpoint or a loopback admin p
 - **Control:** no telemetry, no remote logging, no crash upload. The tool makes network
   requests only to a probed endpoint the operator named.
 
-### T9 — TOCTOU on config between check and probe
+### T9 - TOCTOU on config between check and probe
 
 - **Control:** the parsed config is the single source of truth for the run. We re-read
   only if the user asks for a second pass, and we report the file's mtime/size in the
   report so drift is visible.
 
-### T10 — Unbounded or absurd resource use by the operator's own config
+### T10 - Unbounded or absurd resource use by the operator's own config
 
 - **Control:** limits are constants in `internal/config/limits.go`, documented, and
   overridable downward (never upward) by flags.
 
-## 5. Explicit Non-Goals — Honest Limitations
+## 5. Explicit Non-Goals - Honest Limitations
 
 **This tool does not sandbox.** `os/exec` starts a normal child process with the
 invoking user's full privileges. A hostile MCP server can read every file the user can

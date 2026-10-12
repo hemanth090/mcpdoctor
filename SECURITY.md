@@ -12,8 +12,8 @@ Email **security@mcp-doctor.dev** with:
 - Whether you have already shared it anywhere publicly
 
 We will acknowledge within 72 hours, assess within 7 days, and keep you updated until it
-is fixed or declined. If a report is not a vulnerability — a bug, a bad diagnostic, a
-missing platform — we will say so plainly and point you at where to file it.
+is fixed or declined. If a report is not a vulnerability - a bug, a bad diagnostic, a
+missing platform - we will say so plainly and point you at where to file it.
 
 ## Supported versions
 

@@ -70,7 +70,7 @@ count is two: the MCP SDK and cobra.
 3. Add a test in `internal/config/validate_test.go` asserting the root key and, if the
    format has a quirk, a test that the quirk is handled.
 
-If the client uses YAML or TOML, set the format accordingly — MCP Doctor will detect and
+If the client uses YAML or TOML, set the format accordingly - MCP Doctor will detect and
 report it rather than parsing it. Do not add a YAML parser to work around this.
 
 Cite the vendor documentation in the adapter's comment. An undocumented path is a guess,
@@ -89,7 +89,7 @@ changing its meaning silently is worse than the diagnostic being wrong.
 ## Adding a validation rule
 
 1. Write the rule in `internal/config/validate.go` as `func(a Adapter, s Server, r *redact.Redactor) []diagnose.Finding`.
-2. Register it in `rules` — order matters, so place it after the rules it depends on.
+2. Register it in `rules` - order matters, so place it after the rules it depends on.
 3. Add tests for the positive case and for each way it can misfire.
 
 If the rule touches an env value, header, or argument, register it with the redactor

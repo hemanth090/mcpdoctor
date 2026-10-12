@@ -132,7 +132,7 @@ mcpdoctor check --config .mcp.json --json | jq '.findings[] | select(.code == "M
 ```
 
 MCP Doctor reports that a value *looks* like a credential. It never prints the value. If
-the file is committed, rotate the credential — git history retains it after a later
+the file is committed, rotate the credential - git history retains it after a later
 commit removes it.
 
 ### A client supports a config this tool does not read
@@ -153,10 +153,10 @@ Each finding carries:
     example: "command": "/usr/local/bin/server"
 ```
 
-- **`MDC1006`** — a stable code. Safe to match on in automation, forever.
-- **`target`** — which server or file.
-- **`fix`** — one action. If there is more to say, it is in `detail`.
-- **`example`** — copyable. Already redacted.
+- **`MDC1006`** - a stable code. Safe to match on in automation, forever.
+- **`target`** - which server or file.
+- **`fix`** - one action. If there is more to say, it is in `detail`.
+- **`example`** - copyable. Already redacted.
 
 Findings are grouped by severity, errors first.
 
@@ -184,7 +184,7 @@ Exit codes:
 |---|---|
 | `0` | Clean |
 | `1` | Your configuration has problems |
-| `2` | MCP Doctor could not run — bad flag, unreadable input |
+| `2` | MCP Doctor could not run - bad flag, unreadable input |
 | `130` | Cancelled |
 
 Treat `2` as a distinct failure: it means the check did not happen, which is not the same
@@ -293,6 +293,6 @@ the credential itself. If you need the value, it is in your configuration file.
 
 ## Related
 
-- [Compatibility matrix](COMPATIBILITY.md) — supported clients, paths, and protocol versions
-- [Security model](THREAT-MODEL.md) — what is and is not protected
-- [JSON schema](SCHEMA.md) — the report format
+- [Compatibility matrix](COMPATIBILITY.md) - supported clients, paths, and protocol versions
+- [Security model](THREAT-MODEL.md) - what is and is not protected
+- [JSON schema](SCHEMA.md) - the report format

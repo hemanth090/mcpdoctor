@@ -34,7 +34,7 @@
 
 ## 2. Module Responsibilities
 
-### `internal/diagnose` — the contract everything else speaks
+### `internal/diagnose` - the contract everything else speaks
 
 Leaf module. Defines `Finding`, `Severity`, `Code`, and the aggregation logic that
 turns findings into an exit code. It knows nothing about JSON files, processes, or
@@ -43,28 +43,28 @@ terminals, which is why it is trivially unit-testable and never needs a real MCP
 This module is the reason the tool is scriptable: a finding is a stable, documented
 value, not a formatted string someone greps for.
 
-### `internal/redact` — leaf module
+### `internal/redact` - leaf module
 
 A registry of secret values and pattern matchers, plus `Redact(string) string`. Every
 path that can emit user-influenced text calls it. Being a leaf with no dependencies
 means there is no way for a caller to accidentally route around it.
 
-### `internal/config` — discovery and static validation
+### `internal/config` - discovery and static validation
 
 Two responsibilities kept in one package because they share the file-reading path:
 
-- **Discovery** — enumerate candidate paths per client per OS, plus project-level files.
+- **Discovery** - enumerate candidate paths per client per OS, plus project-level files.
   Returns `[]Source` describing *what could be read*, without reading.
-- **Loading** — read (bounded, read-only, symlink-resolved) and parse JSON **with line
+- **Loading** - read (bounded, read-only, symlink-resolved) and parse JSON **with line
   and column numbers on every error**. Preserving positions is what makes a diagnostic
   actionable, and it is the reason we use a tokenising pass rather than plain
   `encoding/json` for error reporting.
 
 Validation rules live here. Each rule is a small function returning zero or more
 findings, registered in one table. Adding a rule means adding a function and one table
-row — no dispatch changes.
+row - no dispatch changes.
 
-### `internal/protocol` — the consented live probe
+### `internal/protocol` - the consented live probe
 
 Implements `probe.Probe(ctx, Target, Options) (Report, error)`.
 
@@ -74,7 +74,7 @@ Implements `probe.Probe(ctx, Target, Options) (Report, error)`.
   the protocol streams itself.
 - **Transports** wrap a live connection as an `mcp.Transport`. The stdio transport
   hands the SDK the child's stdin/stdout and owns nothing else, so diagnostic output can
-  never corrupt the protocol stream — a hard requirement, because a stray write to a
+  never corrupt the protocol stream - a hard requirement, because a stray write to a
   server's stdout is a protocol violation that would corrupt the very diagnosis.
 
 Correctness of `initialize`, capability negotiation, and `tools/list` comes from the
@@ -82,7 +82,7 @@ official SDK. We do not reimplement JSON-RPC. Our value-add is the *diagnosis* a
 it: timeouts classified correctly, stderr surfaced as a finding, oversized messages
 bounded, and every failure mapped to a stable code.
 
-### `internal/render` — output, and nothing else
+### `internal/render` - output, and nothing else
 
 Two renderers implementing one interface. Both are pure functions over a `Report`. The
 JSON renderer emits a versioned schema; the human renderer emits text. Neither performs
@@ -125,7 +125,7 @@ diagnostics or I/O, so both are testable with a literal expected string.
 12. Reap stderr ring buffer, redact, attach as a finding if non-empty and informative.
 ```
 
-Every arrow is a place a test exists for. Steps 7–9 are the ones that historically
+Every arrow is a place a test exists for. Steps 7-9 are the ones that historically
 produce silent hangs, so each is deadline-bounded independently.
 
 ## 5. Determinism
@@ -137,7 +137,7 @@ Diagnostics should be reproducible: same input, same output, same exit code.
 - No timestamps inside the finding set. The report carries one `generatedAt` field, and
   it is the only non-deterministic byte in the output.
 - stderr excerpts are captured from a ring buffer, so the excerpt for a chatty server
-  is the *most recent* N bytes — deterministic given the same byte stream.
+  is the *most recent* N bytes - deterministic given the same byte stream.
 
 ## 6. Error Taxonomy
 
@@ -157,10 +157,10 @@ to print.
 
 Deliberately few. Each exists because something already needed it:
 
-- **`config.Adapter`** — one per supported client. Adding a client is a struct and a
+- **`config.Adapter`** - one per supported client. Adding a client is a struct and a
   registry entry.
-- **`protocol.Transport`** — one per transport. Stdio and HTTP ship in v1.
-- **`diagnose.Rule`** — a validation function. Registry-ordered.
+- **`protocol.Transport`** - one per transport. Stdio and HTTP ship in v1.
+- **`diagnose.Rule`** - a validation function. Registry-ordered.
 
 There is no plugin system, no dynamic rule loading, and no client adapter loaded from a
 config file. Those would be architecture for hypothetical scale, and the product

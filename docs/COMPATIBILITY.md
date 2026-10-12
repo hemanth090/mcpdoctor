@@ -1,7 +1,7 @@
 # Compatibility
 
-This document records what MCP Doctor actually reads and speaks, and — just as
-importantly — where that knowledge came from. Client configuration formats are not
+This document records what MCP Doctor actually reads and speaks, and - just as
+importantly - where that knowledge came from. Client configuration formats are not
 specified centrally; they are each vendor's own choice, and they change without notice.
 
 **Nothing in this document is asserted without a source.** Where a path is inferred
@@ -58,7 +58,7 @@ Paths are per platform. A path is only probed on the platform it belongs to.
 | **Vendor docs, inferred path** | The client and format are documented, but the absolute path is composed from two sources |
 | **Inferred** | Not published anywhere authoritative; included because it is the path the software actually uses |
 
-### Claude Desktop — **Documented**
+### Claude Desktop - **Documented**
 
 | Platform | Path |
 |---|---|
@@ -72,7 +72,7 @@ is inferred. No project-level configuration.
 *Source: official MCP "connect to local servers" documentation for macOS and Windows;
 the Linux path is published in VS Code's MCP configuration reference.*
 
-### Claude Code — **Documented**
+### Claude Code - **Documented**
 
 | Scope | Path |
 |---|---|
@@ -93,7 +93,7 @@ interpolation placeholder as a warning (`MDC1021`) rather than assuming it works
 
 *Source: `docs.claude.com/en/docs/claude-code/mcp`.*
 
-### VS Code / GitHub Copilot — **Documented** (user-profile path inferred)
+### VS Code / GitHub Copilot - **Documented** (user-profile path inferred)
 
 | Location | Root key |
 |---|---|
@@ -115,7 +115,7 @@ file in your user profile folder".
 `code.visualstudio.com/docs/agents/reference/mcp-configuration`,
 `code.visualstudio.com/docs/configure/settings`.*
 
-### Cursor — **Documented**
+### Cursor - **Documented**
 
 | Scope | Path |
 |---|---|
@@ -128,20 +128,20 @@ use `url` plus `headers` or `auth`. Interpolation uses `${env:NAME}` and
 
 *Source: `cursor.com/docs/mcp`.*
 
-### Windsurf — **Documented**
+### Windsurf - **Documented**
 
 | Purpose | Path |
 |---|---|
 | Editor discovery | `~/.codeium/windsurf/mcp_config.json` |
 | Managed config | `~/.config/devin/mcp_config.json` (macOS/Linux), `%AppData%/devin/mcp_config.json` (Windows) |
 
-Root key `mcpServers`. No `type` field. The URL key is **`serverUrl`**, not `url` — a
+Root key `mcpServers`. No `type` field. The URL key is **`serverUrl`**, not `url` - a
 difference that silently breaks naive tooling. Extra field: `disabledTools`.
 
 *Source: `docs.devin.ai/windsurf/plugins/cascade/mcp` (Windsurf is now under
 Cognition/Devin; the previous docs URL redirects here).*
 
-### Zed — **Documented**
+### Zed - **Documented**
 
 | Platform | Path |
 |---|---|
@@ -156,7 +156,7 @@ Zed supports Tools and Prompts only.
 
 *Source: `zed.dev/docs/ai/mcp.md`.*
 
-### Cline — **Documented**
+### Cline - **Documented**
 
 Global: `~/.cline/data/settings/cline_mcp_settings.json` (override with
 `CLINE_MCP_SETTINGS_PATH`).
@@ -170,7 +170,7 @@ file is listed in it.
 
 *Source: `docs.cline.bot/mcp/mcp-overview`.*
 
-### Roo Code — **Vendor docs, inferred path**
+### Roo Code - **Vendor docs, inferred path**
 
 | Scope | Path |
 |---|---|
@@ -186,7 +186,7 @@ makes this the least stable path in this table.
 
 *Source: `docs.roocode.com/features/mcp/using-mcp-in-roo`.*
 
-### Amazon Q Developer CLI — **Documented**
+### Amazon Q Developer CLI - **Documented**
 
 | Purpose | Path |
 |---|---|
@@ -202,7 +202,7 @@ in the documentation.
 
 *Source: `docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line-mcp-config-CLI.html`.*
 
-### Gemini CLI — **Documented**
+### Gemini CLI - **Documented**
 
 | Scope | Path |
 |---|---|
@@ -223,14 +223,14 @@ Also `trust` (bypasses confirmations), `includeTools`, `excludeTools`, `timeout`
 
 *Source: `google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html`.*
 
-### GitHub Copilot CLI — **Documented**
+### GitHub Copilot CLI - **Documented**
 
 `$COPILOT_HOME/mcp-config.json` or `~/.copilot/mcp-config.json`. Portable format, root
 key `mcpServers`.
 
 *Source: VS Code MCP configuration reference.*
 
-### Continue — **Documented, not parsed**
+### Continue - **Documented, not parsed**
 
 | Scope | Path |
 |---|---|
@@ -245,7 +245,7 @@ not parse it.
 
 *Source: `docs.continue.dev/customize/deep-dives/mcp`.*
 
-### OpenAI Codex — **Documented, not parsed**
+### OpenAI Codex - **Documented, not parsed**
 
 | Scope | Path |
 |---|---|
@@ -277,7 +277,7 @@ configurations.
 
 ### The URL key differs
 
-`url` for most clients, `serverUrl` for Windsurf, `httpUrl` for Gemini CLI — and in
+`url` for most clients, `serverUrl` for Windsurf, `httpUrl` for Gemini CLI - and in
 Gemini CLI's case `url` and `httpUrl` select *different transports*.
 
 ### The root key differs

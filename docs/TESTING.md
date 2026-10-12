@@ -22,7 +22,7 @@ make verify  # all of the above, plus fmt, vet, cross-compile
 Parsers, validation rules, redaction, exit codes, and renderers. Fast, no I/O.
 
 The rules that matter most here assert *behaviour*, not implementation. For example, a
-redaction test asserts that a secret does not appear in output — not that a particular
+redaction test asserts that a secret does not appear in output - not that a particular
 function was called.
 
 ### Integration
@@ -53,7 +53,7 @@ Each control in [THREAT-MODEL.md](THREAT-MODEL.md) has a test.
 
 | Control | Test |
 |---|---|
-| No execution without consent | `TestProbeWithoutExecuteNeverStartsAnything` — config names `touch <marker>`; asserts the marker does not exist |
+| No execution without consent | `TestProbeWithoutExecuteNeverStartsAnything` - config names `touch <marker>`; asserts the marker does not exist |
 | No shell interpretation | `TestCommandWithShellSyntaxIsRejected`, `TestCommandWithSemicolonIsRejected` |
 | Credential isolation for the child | `TestBuildTransportEnvForwardsOnlyTheAllowlist` |
 | No secret in output | `TestSecretsNeverAppearInAnyOutputPath` (human + JSON + stderr) |
@@ -129,6 +129,6 @@ argued about per pull request is worse than one decided once.
 make verify
 ```
 
-This runs formatting, vet, tests, race, govulncheck, and cross-compilation — the same
+This runs formatting, vet, tests, race, govulncheck, and cross-compilation - the same
 gates as CI. CI additionally runs on Windows and macOS, which is where the platform
 split in `internal/protocol` is actually exercised.
